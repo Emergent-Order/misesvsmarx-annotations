@@ -35,5 +35,15 @@
        border-left: none;
        box-shadow: none;
      }
+
+     #edit-link {
+       margin-top: 0.25rem;
+       display: block;
+     }
+
+     .block-editor-block-toolbar.remove-bebt-formatting {
+       border-left: none;
+       box-shadow: none;
+     }
    }
  }

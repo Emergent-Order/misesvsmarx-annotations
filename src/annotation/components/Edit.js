@@ -34,6 +34,7 @@ const {
 	Button,
 	RadioControl,
 	BaseControl,
+	ExternalLink,
 } = wp.components
 const { compose, ifCondition } = wp.compose
 const { RichTextToolbarButton, RichTextShortcut } = wp.editor
@@ -49,11 +50,15 @@ const highlight = {
 	}
 }
 
-const postData = {
-	type: 'misesvsmarx/data',
-	attributes: {
-		postId: null
-	}
+console.log(globals)
+
+async function initializeSite() {
+	return WPAPI.discover(globals.siteUrl).then(site => {
+		return site.auth({
+			endpoint: globals.root,
+			nonce: globals.nonce
+		})
+	})
 }
 
 class Edit extends Component {
@@ -66,13 +71,15 @@ class Edit extends Component {
 		this.toggle = this.toggle.bind(this)
 		this.save = this.save.bind(this)
 		this.getPosts = this.getPosts.bind(this)
-		// this.toggleHighlight = this.toggleHighlight.bind(this)
+		this.getEditLink = this.getEditLink.bind(this)
+
+		const current = value.activeAttributes ? value.activeAttributes.url : null
 
 		this.state = {
 			isOpen: false,
 			view: 'e',
 			annotation: null,
-			postId: null,
+			postId: current,
 			title: '',
 			content: '',
 			url: '',
@@ -83,18 +90,16 @@ class Edit extends Component {
 	}
 
 	async getPosts() {
-		const site = await WPAPI.discover(globals.siteUrl)
+		const site = await initializeSite()
 		site.annotations().perPage(100).get().then(posts => {
 			const p = posts.map(post => {
 				const title = htmlDecode(post.title.rendered)
-				console.log(title)
 				return {
 					value: post.id.toString(),
 					label: title
 				}
 			})
 
-			console.log(posts)
 			this.setState({
 				posts: p
 			})
@@ -102,7 +107,7 @@ class Edit extends Component {
 	}
 
 	async save() {
-		const site = await WPAPI.discover(globals.siteUrl)
+		const site = await initializeSite()
 		const { view, title, content, url, posts, postId } = this.state
 		const { isActive, value, onChange } = this.props
 
@@ -119,6 +124,8 @@ class Edit extends Component {
 			onChange(
 				applyFormat(value, annotation)
 			)
+
+			this.toggle()
 		} else {
 			site.annotations().create({
 				title,
@@ -126,21 +133,45 @@ class Edit extends Component {
 				status: 'publish'
 			}).then(res => {
 				console.log(res)
-				// annotation.attributes.url = response.id
+				annotation.attributes.url = res.id.toString()
 
 				onChange(
 					applyFormat(value, annotation)
 				)
+
+				this.toggle()
 			})
 		}
-
-		this.toggle()
 	}
 
 	toggle() {
+		const { isOpen } = this.state
+		const { value } = this.props
+
+		// If we're opening the layer, set correct current data
+		if (!isOpen) {
+			this.getPosts()
+			const currentFormat = getActiveFormat(value, 'misesvsmarx/annotation')
+			if (currentFormat) {
+				this.setState({
+					view: 'e',
+					postId: currentFormat.attributes.url
+				})
+			}
+		}
+
 		this.setState((state) => ({
 			isOpen: ! state.isOpen,
 		}))
+	}
+
+	getEditLink(current) {
+		// console.log(current)
+		// const site = await initializeSite()
+		// const post = await site.annotations().id(current.value)
+		// console.log('post', post)
+
+		return `${globals.siteUrl}/wp-admin/post.php?post=${current.value}&action=edit`
 	}
 
 	render() {
@@ -149,13 +180,14 @@ class Edit extends Component {
 			url,
 			title,
 			content,
-			annotations,
+			postId,
 			posts,
 			view,
 		} = this.state
 
 		const { value, onChange, isActive } = this.props;
-
+		const currentPost = posts ? posts.filter(post => post.value === postId)[0] : null
+		const currentPostEditLink = currentPost ? this.getEditLink(currentPost) : null
 		return (
 			<Fragment>
 				<BlockControls>
@@ -203,9 +235,10 @@ class Edit extends Component {
 										>
 											<Select
 												id="select"
-												className="block-editor-block-toolbar"
+												className="block-editor-block-toolbar remove-bebt-formatting"
 												options={posts}
 												isSearchable={true}
+												defaultValue={currentPost}
 												onChange={(e) => {
 													console.log(e)
 													this.setState({
@@ -213,6 +246,9 @@ class Edit extends Component {
 													})
 												}}
 											/>
+											<ExternalLink id="edit-link" href={currentPostEditLink}>
+												Edit Annotation
+											</ExternalLink>
 										</BaseControl>
 									}
 									{ view === 'a' &&
@@ -220,6 +256,7 @@ class Edit extends Component {
 											<TextControl
 												label="Title"
 												value={ title }
+												className="block-editor-block-toolbar remove-bebt-formatting"
 												onChange={(val) => {
 													this.setState({
 														title: val
@@ -228,6 +265,7 @@ class Edit extends Component {
 											/>
 											<TextControl
 												label="Annotations URL"
+												className="block-editor-block-toolbar remove-bebt-formatting"
 												value={ url }
 												onChange={(val) => {
 													this.setState({

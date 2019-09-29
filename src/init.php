@@ -60,7 +60,9 @@ function annotations_cgb_block_assets() { // phpcs:ignore
 		[
 			'pluginDirPath' => plugin_dir_path( __DIR__ ),
 			'pluginDirUrl'  => plugin_dir_url( __DIR__ ),
-			'siteUrl' => get_site_url()
+			'siteUrl' => get_site_url(),
+			'root' => esc_url_raw( rest_url() ),
+			'nonce' => wp_create_nonce('wp_rest')
 			// Add more data here that you want to access from `cgbGlobal` object.
 		]
 	);
