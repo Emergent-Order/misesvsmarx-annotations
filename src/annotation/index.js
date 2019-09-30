@@ -26,7 +26,7 @@ const name = 'misesvsmarx/annotation'
 export const annotation = {
 	name,
 	title: __( 'Annotation', 'misesvsmarx' ),
-	tagName: 'a',
+	tagName: 'annotation',
 	className: 'mvm-has-annotation',
 	attributes: {
 		style: 'style',
